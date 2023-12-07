@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 actix-web = "4.4.0"
 argh = "0.1.12"
-drift-sdk = { package = "drift-sdk", git = "https://github.com/circuit-research/protocol-v2", branch = "cargo-add-sdk" }
+drift-sdk = { package = "drift-sdk", git = "ssh://git@github.com/bestarch-ae/drift-sdk-rs.git", rev = "175796a" }
 env_logger = "0.10.1"
 log = "0.4.20"
 serde = { version = "1.0.193", features = ["derive"] }
