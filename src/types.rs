@@ -4,7 +4,7 @@
 //!
 use drift_sdk::{
     constants::{ProgramData, BASE_PRECISION, PRICE_PRECISION},
-    dlob::{self, L2Level, L2Orderbook},
+    dlob_client::{L2Level, L2Orderbook},
     types::{
         self as sdk_types, MarketPrecision, MarketType, ModifyOrderParams, OrderParams, PerpMarket,
         PositionDirection, PostOnlyParam, SpotMarket,
@@ -140,6 +140,7 @@ pub struct PerpPosition {
 }
 
 impl PerpPosition {
+    #[allow(unused)]
     pub fn calculate_unrealized_pnl(&self, oracle_price: i64) -> Decimal {
         Decimal::new(
             self.inner
@@ -197,7 +198,7 @@ pub struct ModifyOrder {
 }
 
 impl ModifyOrder {
-    pub fn to_order_params(self, base_decimals: u32) -> ModifyOrderParams {
+    pub fn into_order_params(self, base_decimals: u32) -> ModifyOrderParams {
         let target_scale = 10_u32.pow(base_decimals);
 
         let (amount, direction) = if let Some(base_amount) = self.amount {
@@ -302,7 +303,7 @@ fn scale_decimal_to_i64(x: Decimal, target: u32) -> i64 {
 }
 
 impl PlaceOrder {
-    pub fn to_order_params(self, base_decimals: u32) -> OrderParams {
+    pub fn into_order_params(self, base_decimals: u32) -> OrderParams {
         let target_scale = 10_u32.pow(base_decimals);
         let base_amount = scale_decimal_to_u64(self.amount.abs(), target_scale);
         let price = if self.oracle_price_offset.is_none() {
@@ -359,6 +360,7 @@ impl Market {
             market_type,
         }
     }
+    #[allow(unused)]
     pub fn spot(index: u16) -> Self {
         Self {
             market_index: index,
@@ -474,12 +476,12 @@ pub struct GetOrderbookRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TxResponse {
-    tx: String,
+    tx: Vec<u8>,
 }
 
 impl TxResponse {
-    pub fn new(tx_signature: String) -> Self {
-        Self { tx: tx_signature }
+    pub fn new(serialized_tx: Vec<u8>) -> Self {
+        Self { tx: serialized_tx }
     }
 }
 
@@ -550,7 +552,7 @@ pub struct PriceLevel {
 }
 
 impl PriceLevel {
-    pub fn new(level: &dlob::L2Level, decimals: u32) -> Self {
+    pub fn new(level: &L2Level, decimals: u32) -> Self {
         Self {
             price: Decimal::new(level.price, PRICE_PRECISION.ilog10()),
             amount: Decimal::new(level.size, decimals),
@@ -605,7 +607,7 @@ mod tests {
                 market: Market::perp(0),
                 ..Default::default()
             };
-            let order_params = p.to_order_params(9);
+            let order_params = p.into_order_params(9);
             assert_eq!(order_params.base_asset_amount, expected);
             assert_eq!(
                 order_params.price,
@@ -630,7 +632,7 @@ mod tests {
                 ..Default::default()
             };
             let is_short = p.amount.is_sign_negative();
-            let order_params = p.to_order_params(base_decimals);
+            let order_params = p.into_order_params(base_decimals);
             assert_eq!(order_params.base_asset_amount, expected);
             if is_short {
                 assert_eq!(order_params.direction, PositionDirection::Short);
@@ -649,7 +651,7 @@ mod tests {
             market: Market::perp(0),
             ..Default::default()
         };
-        let order = p.to_order_params(6);
+        let order = p.into_order_params(6);
         assert_eq!(order.price, 0);
         assert_eq!(order.oracle_price_offset, Some(-500_000));
 
@@ -694,7 +696,7 @@ mod tests {
             oracle_price_offset: Decimal::from_str("0.1").ok(),
             ..Default::default()
         };
-        let order_params = m.to_order_params(9);
+        let order_params = m.into_order_params(9);
 
         assert_eq!(order_params.direction, Some(PositionDirection::Short));
         assert_eq!(order_params.base_asset_amount, Some(500_000_000));
@@ -707,7 +709,7 @@ mod tests {
             oracle_price_offset: Decimal::from_str("-2").ok(),
             ..Default::default()
         };
-        let order_params = m.to_order_params(9);
+        let order_params = m.into_order_params(9);
 
         assert_eq!(order_params.direction, Some(PositionDirection::Long));
         assert_eq!(order_params.base_asset_amount, Some(12_000_000_000));

@@ -410,6 +410,7 @@ fn map_drift_event(
             market_type,
             signature,
             ts,
+            tx_idx: _,
         } => {
             let decimals =
                 get_market_decimals(program_data, Market::new(*market_index, *market_type));
@@ -450,6 +451,7 @@ fn map_drift_event(
             maker_order_id,
             signature,
             ts,
+            tx_idx: _,
         } => {
             let order_id = if *maker == Some(sub_account_address) {
                 maker_order_id

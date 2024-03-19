@@ -1208,6 +1208,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "5.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
+dependencies = [
+ "cfg-if",
+ "hashbrown 0.14.3",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1353,8 +1366,8 @@ dependencies = [
 
 [[package]]
 name = "drift"
-version = "2.61.0"
-source = "git+https://github.com/drift-labs/protocol-v2.git?tag=v2.61.0#45f3fba38b1479f2f96c535fb6f0645837f006d4"
+version = "2.71.0"
+source = "git+https://github.com/drift-labs/protocol-v2.git?tag=v2.71.0#7df812dc26f590fd96f8623de0a93faf471d2193"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -1373,6 +1386,7 @@ dependencies = [
  "solana-program",
  "solana-security-txt",
  "static_assertions",
+ "switchboard",
  "thiserror",
  "uint",
 ]
@@ -1390,6 +1404,7 @@ dependencies = [
  "rust_decimal",
  "serde",
  "serde_json",
+ "solana-transaction-status",
  "thiserror",
  "tokio",
  "tokio-tungstenite 0.21.0",
@@ -1407,16 +1422,17 @@ dependencies = [
 [[package]]
 name = "drift-sdk"
 version = "0.1.0"
-source = "git+ssh://git@github.com/bestarch-ae/drift-sdk-rs.git?branch=client-orderbook-depth#1a9f135783fc432556384a09169bb7628dd2e666"
 dependencies = [
  "anchor-lang",
  "base64 0.13.1",
  "bytemuck",
+ "dashmap",
  "drift",
  "env_logger 0.10.2",
  "fnv",
  "futures-util",
  "log",
+ "rayon",
  "regex",
  "reqwest",
  "serde",
@@ -3099,9 +3115,9 @@ dependencies = [
 
 [[package]]
 name = "rayon"
-version = "1.8.1"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa7237101a77a10773db45d62004a272517633fbcc3df19d96455ede1122e051"
+checksum = "e4963ed1bc86e4f3ee217022bd855b297cef07fb9eac5dfa1f788b220b49b3bd"
 dependencies = [
  "either",
  "rayon-core",
@@ -4484,6 +4500,14 @@ name = "subtle"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
+
+[[package]]
+name = "switchboard"
+version = "0.1.0"
+source = "git+https://github.com/drift-labs/protocol-v2.git?tag=v2.71.0#7df812dc26f590fd96f8623de0a93faf471d2193"
+dependencies = [
+ "anchor-lang",
+]
 
 [[package]]
 name = "syn"
