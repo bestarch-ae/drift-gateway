@@ -459,7 +459,7 @@ impl AppState {
             .send_transaction_with_config(
                 &tx,
                 RpcSendTransactionConfig {
-                    max_retries: Some(0),
+                    //max_retries: Some(0),
                     preflight_commitment: Some(self.tx_commitment.commitment),
                     ..Default::default()
                 },
@@ -479,24 +479,27 @@ impl AppState {
             return result;
         }
 
-        // double send the tx to help chances of landing
+        // send the tx multiple times to help chances of landing
         let client = Arc::clone(&self.client);
         let commitment = self.tx_commitment.commitment;
         tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(200)).await;
-            if let Err(err) = client
-                .inner()
-                .send_transaction_with_config(
-                    &tx,
-                    RpcSendTransactionConfig {
-                        max_retries: Some(0),
-                        preflight_commitment: Some(commitment),
-                        ..Default::default()
-                    },
-                )
-                .await
-            {
-                warn!(target: LOG_TARGET, "retry tx failed: {err:?}");
+            for _ in 1..3 {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                if let Err(err) = client
+                    .inner()
+                    .send_transaction_with_config(
+                        &tx,
+                        RpcSendTransactionConfig {
+                            //max_retries: Some(5),
+                            preflight_commitment: Some(commitment),
+                            ..Default::default()
+                        },
+                    )
+                    .await
+                {
+                    warn!(target: LOG_TARGET, "retry tx failed: {err:?}");
+                    break;
+                }
             }
         });
 
