@@ -71,7 +71,10 @@ async fn accept_connection(
                 let _ = ws_out.close().await;
                 break;
             }
-            ws_out.send(msg).await.expect("sent");
+            if ws_out.send(msg).await.is_err() {
+                info!("{} ws connection closed", addr);
+                break;
+            }
         }
     });
 

@@ -1,3 +1,4 @@
+use base64::Engine;
 use drift_sdk::{
     constants::{ProgramData, BASE_PRECISION},
     dlob_client::DLOBClient,
@@ -27,7 +28,8 @@ use crate::{
         TxEventsResponse, TxResponse, PRICE_DECIMALS,
     },
     websocket::map_drift_event_for_account,
-    Context, LOG_TARGET,
+    Context,
+    TransactionMode, LOG_TARGET,
 };
 
 pub type GatewayResult<T> = Result<T, ControllerError>;
@@ -149,8 +151,9 @@ impl AppState {
             self.delegated,
         )
         .with_priority_fee(priority_fee, ctx.cu_limit);
+        let trx_mode = req.trx_mode;
         let tx = build_cancel_ix(builder, req)?.build();
-        self.send_tx(tx, "cancel_orders").await
+        self.send_tx(tx, "cancel_orders", trx_mode).await
     }
 
     /// Return orders by position if given, otherwise return all positions
@@ -332,7 +335,7 @@ impl AppState {
             .place_orders(orders)
             .build();
 
-        self.send_tx(tx, "cancel_and_place").await
+        self.send_tx(tx, "cancel_and_place", req.trx_mode).await
     }
 
     pub async fn place_orders(
@@ -367,7 +370,7 @@ impl AppState {
         .place_orders(orders)
         .build();
 
-        self.send_tx(tx, "place_orders").await
+        self.send_tx(tx, "place_orders", req.trx_mode).await
     }
 
     pub async fn modify_orders(
@@ -388,8 +391,9 @@ impl AppState {
             self.delegated,
         )
         .with_priority_fee(ctx.cu_price.unwrap_or(pf), ctx.cu_limit);
+        let trx_mode = req.trx_mode;
         let tx = build_modify_ix(builder, req, self.client.program_data())?.build();
-        self.send_tx(tx, "modify_orders").await
+        self.send_tx(tx, "modify_orders", trx_mode).await
     }
 
     pub async fn get_orderbook(&self, req: GetOrderbookRequest) -> GatewayResult<OrderbookL2> {
@@ -471,6 +475,7 @@ impl AppState {
         &self,
         tx: VersionedMessage,
         reason: &'static str,
+        mode: TransactionMode,
     ) -> GatewayResult<TxResponse> {
         let (recent_block_hash, _) = self
             .client
@@ -479,6 +484,12 @@ impl AppState {
             .await
             .map_err(SdkError::from)?;
         let tx = self.wallet.sign_tx(tx, recent_block_hash)?;
+        if let TransactionMode::ComposeAndReturn = mode {
+            let serialized =
+                bincode::serialize(&tx).expect("versioned transaction is always serializable");
+            let tx = base64::prelude::BASE64_STANDARD.encode(serialized);
+            return Ok(TxResponse::new(tx));
+        }
         let result = self
             .client
             .inner()

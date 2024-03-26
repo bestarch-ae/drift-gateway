@@ -13,7 +13,7 @@ use drift_sdk::{
 use rust_decimal::Decimal;
 use serde::{ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::websocket::AccountEvent;
+use crate::{websocket::AccountEvent, TransactionMode};
 
 /// decimal places in price values
 pub const PRICE_DECIMALS: u32 = PRICE_PRECISION.ilog10();
@@ -172,6 +172,8 @@ pub struct PerpPositionExtended {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ModifyOrdersRequest {
     pub orders: Vec<ModifyOrder>,
+    #[serde(default)]
+    pub trx_mode: TransactionMode,
 }
 
 #[cfg_attr(test, derive(Default))]
@@ -230,6 +232,8 @@ impl ModifyOrder {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PlaceOrdersRequest {
     pub orders: Vec<PlaceOrder>,
+    #[serde(default)]
+    pub trx_mode: TransactionMode,
 }
 
 #[cfg_attr(test, derive(Default))]
@@ -474,6 +478,8 @@ pub struct CancelOrdersRequest {
     /// user assigned order Ids to cancel
     #[serde(default)]
     pub user_ids: Option<Vec<u8>>,
+    #[serde(default)]
+    pub trx_mode: TransactionMode,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -511,6 +517,8 @@ pub struct CancelAndPlaceRequest {
     pub cancel: CancelOrdersRequest,
     pub modify: ModifyOrdersRequest,
     pub place: PlaceOrdersRequest,
+    #[serde(default)]
+    pub trx_mode: TransactionMode,
 }
 
 /// Serialize DLOB with human readable numeric values
