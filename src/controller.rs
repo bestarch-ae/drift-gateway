@@ -5,7 +5,9 @@ use drift_sdk::{
     dlob_client::DLOBClient,
     event_subscriber::CommitmentConfig,
     math::liquidation::calculate_liquidation_price,
-    types::{Context, MarketId, MarketType, ModifyOrderParams, SdkError, SdkResult},
+    types::{
+        Context, MarketId, MarketType, ModifyOrderParams, SdkError, SdkResult, VersionedMessage,
+    },
     AccountProvider, DriftClient, Pubkey, RpcAccountProvider, TransactionBuilder, Wallet,
 };
 use futures_util::{stream::FuturesUnordered, StreamExt};
@@ -131,8 +133,7 @@ impl AppState {
         )
         .with_priority_fee(pf, None);
         let tx = build_cancel_ix(builder, req)?.build();
-        Ok(TxResponse::new(tx.serialize()))
-        //self.send_tx(tx, "cancel_orders").await
+        self.send_tx(tx, "cancel_orders").await
     }
 
     /// Return orders by position if given, otherwise return all positions
@@ -286,9 +287,7 @@ impl AppState {
         let tx = build_modify_ix(builder, req.modify, self.client.program_data())?
             .place_orders(orders)
             .build();
-
-        Ok(TxResponse::new(tx.serialize()))
-        //self.send_tx(tx, "cancel_and_place").await
+        self.send_tx(tx, "cancel_and_place").await
     }
 
     pub async fn place_orders(
@@ -320,7 +319,7 @@ impl AppState {
         .place_orders(orders)
         .build();
 
-        Ok(TxResponse::new(tx.serialize()))
+        self.send_tx(tx, "place orders").await
     }
 
     pub async fn modify_orders(
@@ -342,8 +341,7 @@ impl AppState {
         )
         .with_priority_fee(pf, None);
         let tx = build_modify_ix(builder, req, self.client.program_data())?.build();
-        Ok(TxResponse::new(tx.serialize()))
-        //self.send_tx(tx, "modify_orders").await
+        self.send_tx(tx, "modify_orders").await
     }
 
     pub async fn get_orderbook(&self, req: GetOrderbookRequest) -> GatewayResult<OrderbookL2> {
@@ -353,67 +351,69 @@ impl AppState {
         Ok(OrderbookL2::new(book, decimals))
     }
 
-    //async fn send_tx(
-    //&self,
-    //tx: VersionedMessage,
-    //reason: &'static str,
-    //) -> GatewayResult<TxResponse> {
-    //let recent_block_hash = self
-    //.client
-    //.inner()
-    //.get_latest_blockhash()
-    //.await
-    //.map_err(SdkError::from)?;
-    //let tx = self.wallet.sign_tx(tx, recent_block_hash)?;
-    //let result = self
-    //.client
-    //.inner()
-    //.send_transaction_with_config(
-    //&tx,
-    //RpcSendTransactionConfig {
-    //max_retries: Some(3),
-    //preflight_commitment: Some(self.tx_commitment.commitment),
-    //..Default::default()
-    //},
-    //)
-    //.await
-    //.map(|s| {
-    //debug!(target: LOG_TARGET, "sent tx ({reason}): {s}");
-    //TxResponse::new(s.to_string())
-    //})
-    //.map_err(|err| {
-    //warn!(target: LOG_TARGET, "sending tx ({reason}) failed: {err:?}");
-    //handle_tx_err(err.into())
-    //});
+    async fn send_tx(
+        &self,
+        tx: VersionedMessage,
+        _reason: &'static str,
+    ) -> GatewayResult<TxResponse> {
+        let recent_block_hash = self
+            .client
+            .inner()
+            .get_latest_blockhash()
+            .await
+            .map_err(SdkError::from)?;
+        let tx = self.wallet.sign_tx(tx, recent_block_hash)?;
+        let serialized = bincode::serialize(&tx).unwrap();
+        Ok(TxResponse::new(serialized))
+        //let result = self
+        //.client
+        //.inner()
+        //.send_transaction_with_config(
+        //&tx,
+        //RpcSendTransactionConfig {
+        //max_retries: Some(3),
+        //preflight_commitment: Some(self.tx_commitment.commitment),
+        //..Default::default()
+        //},
+        //)
+        //.await
+        //.map(|s| {
+        //debug!(target: LOG_TARGET, "sent tx ({reason}): {s}");
+        //TxResponse::new(s.to_string())
+        //})
+        //.map_err(|err| {
+        //warn!(target: LOG_TARGET, "sending tx ({reason}) failed: {err:?}");
+        //handle_tx_err(err.into())
+        //});
 
-    ////tx has some program/logic error, retry won't fix
-    //if let Err(ControllerError::TxFailed { .. }) = result {
-    //return result;
-    //}
+        ////tx has some program/logic error, retry won't fix
+        //if let Err(ControllerError::TxFailed { .. }) = result {
+        //return result;
+        //}
 
-    ////double send the tx to help chances of landing
-    //let client = Arc::clone(&self.client);
-    //let commitment = self.tx_commitment.commitment;
-    //tokio::spawn(async move {
-    //tokio::time::sleep(Duration::from_millis(200)).await;
-    //if let Err(err) = client
-    //.inner()
-    //.send_transaction_with_config(
-    //&tx,
-    //RpcSendTransactionConfig {
-    //max_retries: Some(0),
-    //preflight_commitment: Some(commitment),
-    //..Default::default()
-    //},
-    //)
-    //.await
-    //{
-    //warn!(target: LOG_TARGET, "retry tx failed: {err:?}");
-    //}
-    //});
+        ////double send the tx to help chances of landing
+        //let client = Arc::clone(&self.client);
+        //let commitment = self.tx_commitment.commitment;
+        //tokio::spawn(async move {
+        //tokio::time::sleep(Duration::from_millis(200)).await;
+        //if let Err(err) = client
+        //.inner()
+        //.send_transaction_with_config(
+        //&tx,
+        //RpcSendTransactionConfig {
+        //max_retries: Some(0),
+        //preflight_commitment: Some(commitment),
+        //..Default::default()
+        //},
+        //)
+        //.await
+        //{
+        //warn!(target: LOG_TARGET, "retry tx failed: {err:?}");
+        //}
+        //});
 
-    //result
-    //}
+        //result
+    }
 }
 
 fn handle_tx_err(err: SdkError) -> ControllerError {

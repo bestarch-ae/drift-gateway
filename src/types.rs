@@ -2,6 +2,7 @@
 //! - gateway request/responses
 //! - wrappers for presenting drift program types with less implementation detail
 //!
+use base64::Engine;
 use drift_sdk::{
     constants::{ProgramData, BASE_PRECISION, PRICE_PRECISION},
     dlob_client::{L2Level, L2Orderbook},
@@ -476,12 +477,14 @@ pub struct GetOrderbookRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TxResponse {
-    tx: Vec<u8>,
+    tx: String,
 }
 
 impl TxResponse {
     pub fn new(serialized_tx: Vec<u8>) -> Self {
-        Self { tx: serialized_tx }
+        let tx = base64::prelude::BASE64_STANDARD.encode(serialized_tx);
+        println!("{tx}");
+        Self { tx }
     }
 }
 
