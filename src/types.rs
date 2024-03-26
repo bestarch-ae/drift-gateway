@@ -481,6 +481,7 @@ pub struct CancelOrdersRequest {
 pub struct GetOrderbookRequest {
     #[serde(flatten)]
     pub market: Market,
+    pub depth: Option<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

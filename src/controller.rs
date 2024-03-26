@@ -395,7 +395,7 @@ impl AppState {
     pub async fn get_orderbook(&self, req: GetOrderbookRequest) -> GatewayResult<OrderbookL2> {
         let book = self
             .dlob_client
-            .get_l2(req.market.as_market_id(), None)
+            .get_l2(req.market.as_market_id(), req.depth)
             .await?;
         let decimals = get_market_decimals(self.client.program_data(), req.market);
         Ok(OrderbookL2::new(book, decimals))
