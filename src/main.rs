@@ -7,6 +7,7 @@ use actix_web::{
 };
 use argh::FromArgs;
 use log::{debug, info, warn};
+use serde::{Deserialize, Serialize};
 
 use controller::{create_wallet, AppState, ControllerError};
 use drift_sdk::{types::CommitmentConfig, Pubkey};
@@ -373,6 +374,14 @@ struct GatewayConfig {
     #[argh(switch)]
     /// enable debug logging
     verbose: bool,
+}
+
+#[derive(Deserialize, Default, Serialize, Debug, Copy, Clone)]
+#[serde(rename_all = "camelCase")]
+enum TransactionMode {
+    #[default]
+    ForwardToRpc,
+    ComposeAndReturn,
 }
 
 #[cfg(test)]
