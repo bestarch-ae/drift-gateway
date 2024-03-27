@@ -170,6 +170,7 @@ pub struct PerpPositionExtended {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct ModifyOrdersRequest {
     pub orders: Vec<ModifyOrder>,
     #[serde(default)]
@@ -230,6 +231,7 @@ impl ModifyOrder {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct PlaceOrdersRequest {
     pub orders: Vec<PlaceOrder>,
     #[serde(default)]
@@ -513,6 +515,7 @@ impl TxEventsResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CancelAndPlaceRequest {
     pub cancel: CancelOrdersRequest,
     pub modify: ModifyOrdersRequest,
