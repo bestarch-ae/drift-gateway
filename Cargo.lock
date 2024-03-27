@@ -1432,7 +1432,7 @@ dependencies = [
 [[package]]
 name = "drift-sdk"
 version = "0.1.0"
-source = "git+https://github.com/drift-labs/drift-rs?branch=main#175796a09db3cc006d6ed5a0aa2d3aa1a98838b3"
+source = "git+https://github.com/drift-labs/drift-rs?rev=175796a0#175796a09db3cc006d6ed5a0aa2d3aa1a98838b3"
 dependencies = [
  "anchor-lang",
  "base64 0.13.1",
