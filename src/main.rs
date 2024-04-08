@@ -472,6 +472,7 @@ mod tests {
             .uri("/orderbook")
             .set_json(GetOrderbookRequest {
                 market: Market::perp(0), // sol-perp
+                depth: None,
             })
             .to_request();
 
