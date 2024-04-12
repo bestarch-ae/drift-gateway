@@ -254,7 +254,11 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .wrap(Logger::new("%a | %s | %r | (%Dms)").log_target(LOG_TARGET))
+            .wrap(
+                Logger::new("%a | %s | %r | (%Dms)")
+                    .log_target(LOG_TARGET)
+                    .exclude("/orderbook"),
+            )
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::scope("/v2")
