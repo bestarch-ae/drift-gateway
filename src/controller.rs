@@ -458,6 +458,8 @@ impl AppState {
             .map_err(SdkError::from)?;
         let tx = self.wallet.sign_tx(tx, recent_block_hash)?;
         if let TransactionMode::ComposeAndReturn = mode {
+            let signature = tx.signatures.first().unwrap();
+            debug!("composed transaction, returning back to client: {signature}");
             let serialized =
                 bincode::serialize(&tx).expect("versioned transaction is always serializable");
             let tx = base64::prelude::BASE64_STANDARD.encode(serialized);
@@ -476,11 +478,11 @@ impl AppState {
             )
             .await
             .map(|s| {
-                debug!(target: LOG_TARGET, "sent tx ({reason}): {s}");
+                debug!(target: LOG_TARGET, "sent tx to RPC node ({reason}): {s}");
                 TxResponse::new(s.to_string())
             })
             .map_err(|err| {
-                warn!(target: LOG_TARGET, "sending tx ({reason}) failed: {err:?}");
+                warn!(target: LOG_TARGET, "sending tx to RPC node ({reason}) failed: {err:?}");
                 handle_tx_err(err.into())
             });
 
