@@ -68,11 +68,15 @@ async fn accept_connection(
     tokio::spawn(async move {
         while let Some(msg) = message_rx.recv().await {
             if msg.is_close() {
+                info!(
+                    "{} server sent websocket connection close, reason: {}",
+                    addr, msg
+                );
                 let _ = ws_out.close().await;
                 break;
             }
-            if ws_out.send(msg).await.is_err() {
-                info!("{} ws connection closed", addr);
+            if let Err(error) = ws_out.send(msg).await {
+                info!("{} ws connection closed, error: {}", addr, error);
                 break;
             }
         }
@@ -172,6 +176,10 @@ async fn accept_connection(
                 }
             },
             Message::Close(frame) => {
+                info!(
+                    "client initiated websocket connection termination, reason: {:?}",
+                    frame
+                );
                 let _ = message_tx.send(Message::Close(frame)).await;
                 break;
             }

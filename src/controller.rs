@@ -16,7 +16,15 @@ use rust_decimal::Decimal;
 use solana_client::{client_error::ClientErrorKind, rpc_config::RpcTransactionConfig};
 use solana_sdk::signature::Signature;
 use solana_transaction_status::{option_serializer::OptionSerializer, UiTransactionEncoding};
-use std::{borrow::Cow, str::FromStr, sync::Arc};
+use std::{
+    borrow::Cow,
+    str::FromStr,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 use thiserror::Error;
 
 use crate::{
@@ -28,8 +36,7 @@ use crate::{
         TxEventsResponse, TxResponse, PRICE_DECIMALS,
     },
     websocket::map_drift_event_for_account,
-    Context,
-    TransactionMode, LOG_TARGET,
+    Context, TransactionMode, LOG_TARGET,
 };
 
 pub type GatewayResult<T> = Result<T, ControllerError>;
@@ -57,6 +64,7 @@ pub struct AppState {
     tx_commitment: CommitmentConfig,
     /// default sub_account_id to use if not provided
     default_subaccount_id: u16,
+    latest_orderbook_slot: Arc<AtomicU64>,
 }
 
 impl AppState {
@@ -109,6 +117,7 @@ impl AppState {
             dlob_client: DLOBClient::new(dlob_endpoint),
             tx_commitment,
             default_subaccount_id: default_subaccount_id.unwrap_or(0),
+            latest_orderbook_slot: Arc::default(),
         }
     }
 
@@ -397,10 +406,22 @@ impl AppState {
     }
 
     pub async fn get_orderbook(&self, req: GetOrderbookRequest) -> GatewayResult<OrderbookL2> {
-        let book = self
-            .dlob_client
-            .get_l2(req.market.as_market_id(), req.depth)
-            .await?;
+        let book = loop {
+            let book = self
+                .dlob_client
+                .get_l2(req.market.as_market_id(), req.depth)
+                .await?;
+            let slot = self.latest_orderbook_slot.load(Ordering::Relaxed);
+            // TODO HACK, will be removed soon
+            if book.slot < slot && slot - book.slot >= 15 {
+                debug!(
+                    "slot is too old, skipping order book: last_slot={}, book_slot={}",
+                    slot, book.slot
+                );
+            } else {
+                break book;
+            }
+        };
         let decimals = get_market_decimals(self.client.program_data(), req.market);
         Ok(OrderbookL2::new(book, decimals))
     }
@@ -522,19 +543,22 @@ impl AppState {
         let client = Arc::clone(&self.client);
         let commitment = self.tx_commitment.commitment;
         tokio::spawn(async move {
-            if let Err(err) = client
-                .inner()
-                .send_transaction_with_config(
-                    &tx,
-                    RpcSendTransactionConfig {
-                        max_retries: Some(0),
-                        preflight_commitment: Some(commitment),
-                        ..Default::default()
-                    },
-                )
-                .await
-            {
-                warn!(target: LOG_TARGET, "retry tx failed: {err:?}");
+            for _ in 0..3 {
+                if let Err(err) = client
+                    .inner()
+                    .send_transaction_with_config(
+                        &tx,
+                        RpcSendTransactionConfig {
+                            //max_retries: Some(0),
+                            preflight_commitment: Some(commitment),
+                            ..Default::default()
+                        },
+                    )
+                    .await
+                {
+                    warn!(target: LOG_TARGET, "retry tx failed: {err:?}");
+                }
+                tokio::time::sleep(Duration::from_secs(2)).await;
             }
         });
 
