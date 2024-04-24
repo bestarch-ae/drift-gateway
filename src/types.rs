@@ -358,6 +358,7 @@ impl Market {
             market_type,
         }
     }
+    #[allow(unused)]
     pub fn spot(index: u16) -> Self {
         Self {
             market_index: index,

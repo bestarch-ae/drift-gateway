@@ -4,14 +4,11 @@ use drift_sdk::{
     dlob_client::DLOBClient,
     event_subscriber::{try_parse_log, CommitmentConfig},
     math::liquidation::calculate_liquidation_price_and_unrealized_pnl,
-    types::{
-        self, MarketId, MarketType, ModifyOrderParams, RpcSendTransactionConfig, SdkError,
-        SdkResult, VersionedMessage,
-    },
+    types::{self, MarketId, MarketType, ModifyOrderParams, SdkError, SdkResult, VersionedMessage},
     AccountProvider, DriftClient, Pubkey, RpcAccountProvider, TransactionBuilder, Wallet,
 };
 use futures_util::{stream::FuturesUnordered, StreamExt};
-use log::{debug, warn};
+use log::{debug, info, warn};
 use rust_decimal::Decimal;
 use solana_client::{client_error::ClientErrorKind, rpc_config::RpcTransactionConfig};
 use solana_sdk::signature::Signature;
@@ -23,7 +20,6 @@ use std::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
-    time::Duration,
 };
 use thiserror::Error;
 
@@ -59,7 +55,7 @@ pub struct AppState {
     /// true if gateway is using delegated signing
     delegated: bool,
     pub client: Arc<DriftClient<RpcAccountProvider>>,
-    dlob_client: DLOBClient,
+    pub dlob_client: DLOBClient,
     /// Solana tx commitment level for preflight confirmation
     tx_commitment: CommitmentConfig,
     /// default sub_account_id to use if not provided
@@ -413,7 +409,7 @@ impl AppState {
                 .await?;
             let slot = self.latest_orderbook_slot.load(Ordering::Relaxed);
             // TODO HACK, will be removed soon
-            if book.slot < slot && slot - book.slot >= 15 {
+            if book.slot < slot {
                 debug!(
                     "slot is too old, skipping order book: last_slot={}, book_slot={}",
                     slot, book.slot
@@ -422,6 +418,7 @@ impl AppState {
                 break book;
             }
         };
+        self.latest_orderbook_slot.store(book.slot, Ordering::Relaxed);
         let decimals = get_market_decimals(self.client.program_data(), req.market);
         Ok(OrderbookL2::new(book, decimals))
     }
@@ -505,25 +502,19 @@ impl AppState {
             .await
             .map_err(SdkError::from)?;
         let tx = self.wallet.sign_tx(tx, recent_block_hash)?;
+        let signature = tx.signatures.first().unwrap();
         if let TransactionMode::ComposeAndReturn = mode {
-            let signature = tx.signatures.first().unwrap();
             debug!("composed transaction, returning back to client: {signature}");
             let serialized =
                 bincode::serialize(&tx).expect("versioned transaction is always serializable");
             let tx = base64::prelude::BASE64_STANDARD.encode(serialized);
             return Ok(TxResponse::new(tx));
         }
+        info!("sending transaction for {reason} to RPC node: {signature}");
         let result = self
             .client
             .inner()
-            .send_transaction_with_config(
-                &tx,
-                RpcSendTransactionConfig {
-                    //max_retries: Some(0),
-                    preflight_commitment: Some(self.tx_commitment.commitment),
-                    ..Default::default()
-                },
-            )
+            .send_and_confirm_transaction(&tx)
             .await
             .map(|s| {
                 debug!(target: LOG_TARGET, "sent tx to RPC node ({reason}): {s}");
@@ -533,34 +524,6 @@ impl AppState {
                 warn!(target: LOG_TARGET, "sending tx to RPC node ({reason}) failed: {err:?}");
                 handle_tx_err(err.into())
             });
-
-        // tx has some program/logic error, retry won't fix
-        if let Err(ControllerError::TxFailed { .. }) = result {
-            return result;
-        }
-
-        // send the tx multiple times to help chances of landing
-        let client = Arc::clone(&self.client);
-        let commitment = self.tx_commitment.commitment;
-        tokio::spawn(async move {
-            for _ in 0..3 {
-                if let Err(err) = client
-                    .inner()
-                    .send_transaction_with_config(
-                        &tx,
-                        RpcSendTransactionConfig {
-                            //max_retries: Some(0),
-                            preflight_commitment: Some(commitment),
-                            ..Default::default()
-                        },
-                    )
-                    .await
-                {
-                    warn!(target: LOG_TARGET, "retry tx failed: {err:?}");
-                }
-                tokio::time::sleep(Duration::from_secs(2)).await;
-            }
-        });
 
         result
     }

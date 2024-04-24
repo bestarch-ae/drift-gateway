@@ -217,6 +217,8 @@ async fn main() -> std::io::Result<()> {
         Some(config.default_sub_account_id),
     )
     .await;
+    let dlob_client = state.dlob_client.clone();
+
 
     info!(
         target: LOG_TARGET,
@@ -249,6 +251,7 @@ async fn main() -> std::io::Result<()> {
         config.rpc_host.replace("http", "ws"),
         state.wallet.clone(),
         client.program_data(),
+        dlob_client
     )
     .await;
 
@@ -285,7 +288,6 @@ async fn main() -> std::io::Result<()> {
 fn handle_result<T: std::fmt::Debug>(
     result: Result<T, ControllerError>,
 ) -> Either<HttpResponse, Json<T>> {
-    debug!(target: LOG_TARGET, "response: {result:?}");
     match result {
         Ok(payload) => Either::Right(Json(payload)),
         Err(ControllerError::Sdk(err)) => {
