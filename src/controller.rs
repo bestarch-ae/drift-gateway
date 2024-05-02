@@ -422,6 +422,7 @@ impl AppState {
                 break book;
             }
         };
+        self.latest_orderbook_slot.store(book.slot, Ordering::Relaxed);
         let decimals = get_market_decimals(self.client.program_data(), req.market);
         Ok(OrderbookL2::new(book, decimals))
     }
