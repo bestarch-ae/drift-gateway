@@ -517,11 +517,11 @@ impl AppState {
             .send_and_confirm_transaction(&tx)
             .await
             .map(|s| {
-                debug!(target: LOG_TARGET, "sent tx to RPC node ({reason}): {s}");
+                debug!(target: LOG_TARGET, "sent tx to RPC node ({reason}): {s}; recent block hash: {recent_block_hash}");
                 TxResponse::new(s.to_string())
             })
             .map_err(|err| {
-                warn!(target: LOG_TARGET, "sending tx to RPC node ({reason}) failed: {err:?}");
+                warn!(target: LOG_TARGET, "sending tx to RPC node ({reason}) failed: {err:?}; recent block hash: {recent_block_hash}");
                 handle_tx_err(err.into())
             });
 
