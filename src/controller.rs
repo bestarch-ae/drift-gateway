@@ -492,11 +492,11 @@ impl AppState {
             )
             .await
             .map(|s| {
-                debug!(target: LOG_TARGET, "sent tx ({reason}): {s}");
+                debug!(target: LOG_TARGET, "sent tx ({reason}): {s}; recent block hash: {recent_block_hash}");
                 TxResponse::new(s.to_string())
             })
             .map_err(|err| {
-                warn!(target: LOG_TARGET, "sending tx ({reason}) failed: {err:?}");
+                warn!(target: LOG_TARGET, "sending tx ({reason}) failed: {err:?}; recent block hash: {recent_block_hash}");
                 handle_tx_err(err.into())
             });
 
