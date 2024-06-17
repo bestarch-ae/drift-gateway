@@ -418,7 +418,8 @@ impl AppState {
                 break book;
             }
         };
-        self.latest_orderbook_slot.store(book.slot, Ordering::Relaxed);
+        self.latest_orderbook_slot
+            .store(book.slot, Ordering::Relaxed);
         let decimals = get_market_decimals(self.client.program_data(), req.market);
         Ok(OrderbookL2::new(book, decimals))
     }
@@ -498,7 +499,7 @@ impl AppState {
         let (recent_block_hash, _) = self
             .client
             .inner()
-            .get_latest_blockhash_with_commitment(CommitmentConfig::finalized())
+            .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
             .await
             .map_err(SdkError::from)?;
         let tx = self.wallet.sign_tx(tx, recent_block_hash)?;
